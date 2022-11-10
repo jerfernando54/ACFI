@@ -22,6 +22,7 @@ fmod RED is
  op <__> : Nodo Msj -> Contenidos [ctor] .
  op __ : Contenidos Continidos -> Contenidos [ctor assoc comm] .
  
+ *** Declaracion de variables
  var M : Msj .
  var ND : Nodo .
  var S : String .
@@ -29,10 +30,11 @@ fmod RED is
  vars C C' : Contenidos .
  var L : Localizacion .
 
+*** Contar cuantos nodos tiene un sistema
  op numNodos : Sistema -> Nat .
  eq numNodos(none) = 0 .
  
- eq numNodos({ N | < ND M > }) = NO .
+ eq numNodos({ N | < ND M > } ND L) = 1 + numNodos(L) .
  eq numNodos({ N | < ND M > } L) = 1 + numNodos(L) .
 
 endfm
