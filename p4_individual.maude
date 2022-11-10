@@ -1,0 +1,99 @@
+fmod RED is
+ pr NAT .
+ pr STRING .
+ pr TABLAHASH .
+ pr LISTASTRING .
+
+ sorts Localizacion Sistema Contenidos Nodo Msj .
+ subsort Localizacion < Sistema .
+ *** Define los subtipos entre Contenidos y Nodo y Msj
+ subsort Nodo Msj < Contenidos . 
+
+ op none : -> Sistema [ctor] .
+ op {_|_} : Nat Contenidos -> Localizacion [ctor] .
+ op __ : Sistema Sistema -> Sistema [ctor assoc comm id: none] .
+
+ *** Termina de definir constructores
+ op extremo : String String ListaString String -> Nodo [ctor] .
+ op centro : Nat tablaHash String -> Nodo [ctor] .
+ op info : Nat Nat String -> Msj [ctor] .
+ op respuesta-info : Nat -> Msj [ctor] .
+ op to_:_ : Nat Nat -> Msj [ctor] .
+ op <__> : Nodo Msj -> Contenidos [ctor] .
+ op __ : Contenidos Continidos -> Contenidos [ctor assoc comm] .
+ 
+ var M : Msj .
+ var ND : Nodo .
+ var S : String .
+ vars N : Nat .
+ vars C C' : Contenidos .
+ var L : Localizacion .
+
+ op numNodos : Sistema -> Nat .
+ eq numNodos(none) = 0 .
+ 
+ eq numNodos({ N | < ND M > }) = NO .
+ eq numNodos({ N | < ND M > } L) = 1 + numNodos(L) .
+
+endfm
+
+*** Modulo tabla hash
+fmod TABLAHASH is
+    pr STRING .
+
+    sort tablaHash .
+
+    op <_,_> : String String -> tablaHash [ctor ] .
+    op __ : tablaHash tablaHash -> tablaHash [ctor assoc comm] .
+	
+endfm
+
+*** Modulo ListaString
+fmod LISTASTRING is
+	pr STRING .
+	
+	sort ListaString .
+	subsort String < ListaString .
+	
+	op lsvacia : -> ListaString [ctor] .
+	op __ : ListaString ListaString -> ListaString [ctor assoc id: lsvacia] .
+	
+endfm
+
+mod COMPORTAMIENTO is
+ *** Importa los modulos correspondientes
+
+ *** Define el comportamiento de la red mediante reglas
+endm
+
+mod EJEMPLO is
+ *** Importa los modulos correspondientes
+
+ op init : -> Sistema .
+ *** Define un término inicial sobre el que probar las propiedades siguiendo el enunciado
+ *** red init = { 0 | ... }
+ ***            { 1 | ... }
+ ***            ...
+endm
+
+rew init .
+
+*** search init ...
+
+load model-checker
+
+mod PROPS is
+ *** Importa los modulos correspondientes
+
+ *** Define las propiedades
+endm
+
+mod TEST is
+ *** Importa los modulos correspondientes
+endm
+
+eof
+
+*** Define y comprueba las propiedades
+
+red modelCheck(init, ...) .
