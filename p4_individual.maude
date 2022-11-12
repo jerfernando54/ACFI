@@ -1,10 +1,34 @@
+*** Modulo tabla hash
+fmod TABLAHASH is
+    pr STRING .
+
+    sort TablaHash .
+
+    op hashvacia : -> TablaHash [ctor] .
+    op <_,_> : String String -> TablaHash [ctor ] .
+    op __ : TablaHash TablaHash -> TablaHash [ctor assoc comm] .
+    
+endfm
+
+*** Modulo ListaString
+fmod LISTASTRING is
+    pr STRING .
+    
+    sort ListaString .
+    subsort String < ListaString .
+    
+    op lsvacia : -> ListaString [ctor] .
+    op __ : ListaString ListaString -> ListaString [ctor assoc id: lsvacia] .
+    
+endfm
+
 fmod RED is
  pr NAT .
  pr STRING .
  pr TABLAHASH .
  pr LISTASTRING .
 
- sorts Localizacion Sistema Contenidos Nodo Msj .
+ sorts Localizacion Sistema Contenidos Nodo Msj EstExtremo EstCentro .
  subsort Localizacion < Sistema .
  *** Define los subtipos entre Contenidos y Nodo y Msj
  subsort Nodo Msj < Contenidos . 
@@ -13,14 +37,29 @@ fmod RED is
  op {_|_} : Nat Contenidos -> Localizacion [ctor] .
  op __ : Sistema Sistema -> Sistema [ctor assoc comm id: none] .
 
+ *** Estados Nodos
+ ops ninactivo nactivo esperando : -> EstExtremo [ctor] .
+ ops cinactivo cactivo : -> EstCentro [ctor] .
+
  *** Termina de definir constructores
- op extremo : String String ListaString String -> Nodo [ctor] .
- op centro : Nat tablaHash String -> Nodo [ctor] .
- op info : Nat Nat String -> Msj [ctor] .
- op respuesta-info : Nat -> Msj [ctor] .
- op to_:_ : Nat Nat -> Msj [ctor] .
+ *** NODO EXTREMO
+ op [_-_|_|_|_] : String String EstExtremo ListaString String -> Nodo [ctor] .
+
+ *** NODO CENTRO
+ op [_-_|_] : String TablaHash EstCentro -> Nodo [ctor] .
+
+ *** MENSAJE "INFO"
+ op info<_;_;_> : Nat Nat String -> Msj [ctor] .
+
+ *** MENSAJE "RESPUESTA INFO"
+ op <_> : String -> Msj [ctor] .
+
+ *** MENSAJE "TO_:_"
+ op to[_:_] : String String -> Msj [ctor] .
+
+
  op <__> : Nodo Msj -> Contenidos [ctor] .
- op __ : Contenidos Continidos -> Contenidos [ctor assoc comm] .
+ op __ : Contenidos Contenidos -> Contenidos [ctor assoc comm] .
  
  *** Declaracion de variables
  var M : Msj .
@@ -28,38 +67,17 @@ fmod RED is
  var S : String .
  vars N : Nat .
  vars C C' : Contenidos .
- var L : Localizacion .
+ var LOC : Localizacion .
+ var SIS : Sistema .
 
 *** Contar cuantos nodos tiene un sistema
  op numNodos : Sistema -> Nat .
  eq numNodos(none) = 0 .
  
- eq numNodos({ N | < ND M > } ND L) = 1 + numNodos(L) .
- eq numNodos({ N | < ND M > } L) = 1 + numNodos(L) .
+ ***eq numNodos({ N | < ND M > } ND L) = 1 + numNodos(L) .
+ *** eq numNodos({ N | < ND M > } L) = 1 + numNodos(L) .
+ eq numNodos(LOC SIS) = 1 + numNodos(SIS) .
 
-endfm
-
-*** Modulo tabla hash
-fmod TABLAHASH is
-    pr STRING .
-
-    sort tablaHash .
-
-    op <_,_> : String String -> tablaHash [ctor ] .
-    op __ : tablaHash tablaHash -> tablaHash [ctor assoc comm] .
-	
-endfm
-
-*** Modulo ListaString
-fmod LISTASTRING is
-	pr STRING .
-	
-	sort ListaString .
-	subsort String < ListaString .
-	
-	op lsvacia : -> ListaString [ctor] .
-	op __ : ListaString ListaString -> ListaString [ctor assoc id: lsvacia] .
-	
 endfm
 
 mod COMPORTAMIENTO is
@@ -70,8 +88,22 @@ endm
 
 mod EJEMPLO is
  *** Importa los modulos correspondientes
+ pr RED .
 
  op init : -> Sistema .
+
+ *** PRUEBA: SISTEMA BASICO
+ ***eq init = { 0 | ["Z" - hashvacia | cactivo] }
+ ***          { 1 | ["A" - "Z" | nactivo | "B" "C" | "Hola Mundo 1"] }
+ ***          { 2 | ["B" - "Z" | nactivo | "A" "C" | "Hola Mundo 2"] }
+ ***          { 3 | ["C" - "Z" | ninactivo | "A" "B" | "Hola Mundo 3"] } .
+
+ *** PRUEBA: SISTEMA BASICO CON MENSAJES
+ eq init = { 0 | ["Z" - hashvacia | cactivo] }
+           { 1 | ["A" - "Z" | nactivo | "B" "C" | "Hola Mundo 1"] info< 0 ; 3 ; "A" > }
+           { 2 | ["B" - "Z" | nactivo | "A" "C" | "Hola Mundo 2"] < "C" > }
+           { 3 | ["C" - "Z" | ninactivo | "A" "B" | "Hola Mundo 3"] to[ "A" : "Baby Shark" ] } .
+
  *** Define un término inicial sobre el que probar las propiedades siguiendo el enunciado
  *** red init = { 0 | ... }
  ***            { 1 | ... }
@@ -79,6 +111,8 @@ mod EJEMPLO is
 endm
 
 rew init .
+
+rew numNodos(init) .
 
 *** search init ...
 
