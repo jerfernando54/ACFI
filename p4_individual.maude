@@ -1,24 +1,44 @@
 *** Modulo tabla hash
 fmod TABLAHASH is
     pr STRING .
+    sort TablaHashItem TablaHash .
+    subsort TablaHashItem < TablaHash .
 
-    sort TablaHash .
 
     op hashvacia : -> TablaHash [ctor] .
-    op <_,_> : String String -> TablaHash [ctor ] .
-    op __ : TablaHash TablaHash -> TablaHash [ctor assoc comm] .
-    
+    op hash<_,_> : String Nat -> TablaHash [ctor ] .
+    op __ : TablaHash TablaHash -> TablaHash [ctor assoc comm id: hashvacia] .
+
+    ***Definiendo variables
+    vars N N' : Nat .
+    vars S S' : String .
+    vars TH TH' : TablaHash .
+
+    ***Funcion insertar en la TablaHash
+    op insertar : String Nat TablaHash -> TablaHash .
+    eq insertar(S, N, hashvacia) = hash< S, N > .
+
+    ***Funcion actualizar la TablaHash
+    op actualizarTHash : String Nat TablaHash -> TablaHash .
+    eq actualizarTHash(S, N, TH) = TH hash< S, N > .
+
 endfm
 
 *** Modulo ListaString
 fmod LISTASTRING is
     pr STRING .
-    
     sort ListaString .
     subsort String < ListaString .
     
-    op lsvacia : -> ListaString [ctor] .
-    op __ : ListaString ListaString -> ListaString [ctor assoc id: lsvacia] .
+    op sinAmigos : -> ListaString [ctor] .
+    op __ : ListaString ListaString -> ListaString [ctor assoc id: sinAmigos] .
+
+    var AMIGO : String .
+    var LAMIGOS : ListaString .
+
+    op sacarAmigo : ListaString -> ListaString .
+    eq sacarAmigo(sinAmigos) = sinAmigos .
+    eq sacarAmigo(AMIGO LAMIGOS) = sacarAmigo(LAMIGOS) . 
     
 endfm
 
@@ -31,7 +51,8 @@ fmod RED is
  sorts Localizacion Sistema Contenidos Nodo Msj EstExtremo EstCentro .
  subsort Localizacion < Sistema .
  *** Define los subtipos entre Contenidos y Nodo y Msj
- subsort Nodo Msj < Contenidos . 
+ subsort Nodo < Contenidos . 
+ subsort Msj < Contenidos .
 
  op none : -> Sistema [ctor] .
  op {_|_} : Nat Contenidos -> Localizacion [ctor] .
@@ -43,7 +64,7 @@ fmod RED is
 
  *** Termina de definir constructores
  *** NODO EXTREMO
- op [_-_|_|_|_] : String String EstExtremo ListaString String -> Nodo [ctor] .
+ op [_-_|_|_|_] : String Nat EstExtremo ListaString String -> Nodo [ctor] .
 
  *** NODO CENTRO
  op [_-_|_] : String TablaHash EstCentro -> Nodo [ctor] .
@@ -52,84 +73,196 @@ fmod RED is
  op info<_;_;_> : Nat Nat String -> Msj [ctor] .
 
  *** MENSAJE "RESPUESTA INFO"
- op <_> : String -> Msj [ctor] .
+ op respuesta-info<_> : String -> Msj [ctor] .
 
  *** MENSAJE "TO_:_"
- op to[_:_] : String String -> Msj [ctor] .
+ op to_:_ : String String -> Msj [ctor] .
 
 
- op <__> : Nodo Msj -> Contenidos [ctor] .
- op __ : Contenidos Contenidos -> Contenidos [ctor assoc comm] .
+ op cvacio : -> Contenidos [ctor] .
+ op __ : Contenidos Contenidos -> Contenidos [ctor assoc comm id: cvacio] .
  
  *** Declaracion de variables
- var M : Msj .
- var ND : Nodo .
- var S : String .
- vars N : Nat .
- vars C C' : Contenidos .
- var LOC : Localizacion .
  var SIS : Sistema .
+ var LOC : Localizacion .
 
-*** Contar cuantos nodos tiene un sistema
+*** Contar numeros de nodos de un sistema
  op numNodos : Sistema -> Nat .
  eq numNodos(none) = 0 .
- 
- ***eq numNodos({ N | < ND M > } ND L) = 1 + numNodos(L) .
- *** eq numNodos({ N | < ND M > } L) = 1 + numNodos(L) .
  eq numNodos(LOC SIS) = 1 + numNodos(SIS) .
 
 endfm
 
 mod COMPORTAMIENTO is
  *** Importa los modulos correspondientes
+    pr TABLAHASH .
+    pr STRING .
+    pr RED .
+
+    ***Definiendo las variables
+    vars S S' : Sistema .
+    var ESTCENTRO : EstCentro .
+    var ESTEXTREMO : EstExtremo .
+    vars AMIGOS : ListaString .
+    vars IDLOC IDLOCCENTRO VALOR : Nat .
+    vars IDNODO IDNODO' CLAVE : String .
+    var THASH THASH' : TablaHash .
+    vars MSGREC AMG MSGREC' : String .
+    vars CONTENIDO CONTENIDO' : Contenidos .
 
  *** Define el comportamiento de la red mediante reglas
+ *** 7- Cuando en na misma localizacion tenemos un mensaje y el nodo al que va dirigido el mensaje se procesa
+ *** 8- Cuando un mensaje va dirigido a un nodo en otra localizacion tenemos las siguientes opciones:
+            *** Cada una se corresponde con una regla diferente
+            *** Opcion 1- Los extremos mandan su mensaje al centro
+            *** Opcion 2- El centro usa su tabla hash para enviar el mensaje a la localizacion correcta
+
+ *** 9- Los extremos en un estado inactivo generan el mensaje info para indicar su direccion y su nombre .
+ *** Al generarlo pasan al estado esperando.
+    rl [extremo-inactivo-genera-msg-info] : 
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ninactivo | AMIGOS | MSGREC ] CONTENIDO } 
+            => 
+            { IDLOC | [ IDNODO - IDLOCCENTRO | esperando | AMIGOS | MSGREC ] info< IDLOCCENTRO ; IDLOC ; IDNODO > CONTENIDO } .
+
+   --- Aunque no viene especificado en las instrucciones, es necesario que el mensaje generado anteriormente sea 
+   --- enviado para que el nodo centro pueda recibirlo. 
+    rl [extremo-esperando-envia-msg-info] : 
+            { IDLOCCENTRO | [ IDNODO' - THASH | ESTCENTRO ] CONTENIDO' }
+            { IDLOC | [ IDNODO - IDLOCCENTRO | esperando | AMIGOS | MSGREC ] info< IDLOCCENTRO ; IDLOC ; IDNODO > CONTENIDO }
+            =>
+            { IDLOCCENTRO | [ IDNODO' - THASH | ESTCENTRO ] info< IDLOCCENTRO ; IDLOC ; IDNODO > CONTENIDO' }
+            { IDLOC | [ IDNODO - IDLOCCENTRO | esperando | AMIGOS | MSGREC ] CONTENIDO } .
+
+
+ *** 10- Cuando este mensaje es recibido por el centro se utiliza para actualizar la tabla. En la misma regla el centro
+ ***     envia respuesta-info al extremo como respuesta. Ademas, el centro pasa de inactivo a activo en cuanto recibe uno de estos mensajes .
+     rl [centro-recibe-msj-info] : 
+            { IDLOCCENTRO | [ IDNODO' - THASH | ESTCENTRO ] info< IDLOCCENTRO ; IDLOC ; IDNODO > CONTENIDO' } 
+            => 
+            { IDLOCCENTRO | [ IDNODO' - actualizarTHash(IDNODO, IDLOC, THASH) | cactivo ] respuesta-info< IDNODO > CONTENIDO' } .
+
+      rl [centro-envia-msj-info] : 
+            { IDLOCCENTRO | [ IDNODO' - THASH | cactivo ] respuesta-info< IDNODO > CONTENIDO' }
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] CONTENIDO }
+            =>
+            { IDLOCCENTRO | [ IDNODO' - THASH | cactivo ] CONTENIDO' }
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] respuesta-info< IDNODO > CONTENIDO } .
+
+ *** 11- Cuando un extremo recibe un mensage respuesta-info, actualiza su estado y pasa a activo.
+      rl [extremo-recibe-msj-respuesta-info] : 
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] respuesta-info< IDNODO > CONTENIDO } 
+            =>
+            { IDLOC | [ IDNODO - IDLOCCENTRO | nactivo | AMIGOS | MSGREC ] CONTENIDO } .
+
+ *** 12- Los Nodos com amigos mandan mensaje to_:_ a dichos amigos diciendoles "hola". Asegurate de que solo manden uno de estos
+ *** mensajes a cada amigo (es valido borrar amigos de la lista)
+      rl [extremo-envia-msj-to-amigos] : 
+            { IDLOC | [ IDNODO - IDLOCCENTRO | nactivo | AMG AMIGOS | MSGREC ] CONTENIDO }
+            =>
+            { IDLOC | [ IDNODO - IDLOCCENTRO | nactivo | AMIGOS | MSGREC ] (to AMG : "hola ") CONTENIDO } .
+
+      --- El mensaje debe pasar por el centro.
+      rl [centro-recibe-msj-to] :
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] (to AMG : MSGREC') CONTENIDO }
+            { IDLOCCENTRO | [ IDNODO' - THASH | ESTCENTRO ] CONTENIDO' }
+            =>
+            { IDLOC | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] CONTENIDO }
+            { IDLOCCENTRO | [ IDNODO' - THASH | ESTCENTRO ] (to AMG : MSGREC') CONTENIDO' } .
+      
+ *** 13- Cuando un mensaje to_:_ llega a un nodo el mensaje concatena a lo que ya habiamos recibido.
+      rl [extremo-recibe-msj-to] : 
+            { IDLOCCENTRO | [ IDNODO' - hash< AMG, VALOR > THASH | ESTCENTRO ] (to AMG : MSGREC') CONTENIDO' }
+            { VALOR | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC ] CONTENIDO }
+            =>
+            { IDLOCCENTRO | [ IDNODO' - hash< AMG, VALOR > THASH | ESTCENTRO ]  CONTENIDO' }
+            { VALOR | [ IDNODO - IDLOCCENTRO | ESTEXTREMO | AMIGOS | MSGREC + MSGREC' ] CONTENIDO } .
+
 endm
 
+*** 14
 mod EJEMPLO is
  *** Importa los modulos correspondientes
  pr RED .
-
+ pr COMPORTAMIENTO .
  op init : -> Sistema .
 
- *** PRUEBA: SISTEMA BASICO
- ***eq init = { 0 | ["Z" - hashvacia | cactivo] }
- ***          { 1 | ["A" - "Z" | nactivo | "B" "C" | "Hola Mundo 1"] }
- ***          { 2 | ["B" - "Z" | nactivo | "A" "C" | "Hola Mundo 2"] }
- ***          { 3 | ["C" - "Z" | ninactivo | "A" "B" | "Hola Mundo 3"] } .
+*** Define un término inicial sobre el que probar las propiedades siguiendo el enunciado .
 
- *** PRUEBA: SISTEMA BASICO CON MENSAJES
- eq init = { 0 | ["Z" - hashvacia | cactivo] }
-           { 1 | ["A" - "Z" | nactivo | "B" "C" | "Hola Mundo 1"] info< 0 ; 3 ; "A" > }
-           { 2 | ["B" - "Z" | nactivo | "A" "C" | "Hola Mundo 2"] < "C" > }
-           { 3 | ["C" - "Z" | ninactivo | "A" "B" | "Hola Mundo 3"] to[ "A" : "Baby Shark" ] } .
+--- eq init = { 0 | [ "IDC1" - hashvacia | cinactivo] }
+---             { 1 | [ "A" - 3 | ninactivo | "C" "B" | "" ] } 
+---             { 2 | [ "B" - 1 | ninactivo | "A" "C" | "" ] } 
+---             { 3 | [ "C" - 2 | ninactivo | "B" "A" | "" ] } .
 
- *** Define un término inicial sobre el que probar las propiedades siguiendo el enunciado
- *** red init = { 0 | ... }
- ***            { 1 | ... }
- ***            ...
+eq init = { 0 | [ "IDC1" - hashvacia | cinactivo] }
+            { 1 | [ "A" - 0 | ninactivo | "C" "B" | "" ] } 
+            { 2 | [ "B" - 0 | ninactivo | "A" "C" | "" ] } 
+            { 3 | [ "C" - 0 | ninactivo | "B" "A" | "" ] } .
+
+
+
 endm
+frew init .
 
-rew init .
+*** 15 Utiliza el comando search para comprobar que el numero de permanece invariable durante toda la ejecucion .
+search [1] init =>+ SIS:Sistema s.t. numNodos(init) =/= numNodos(SIS:Sistema) .
 
-rew numNodos(init) .
-
-*** search init ...
+search init =>+ { 0 | [ "IDC1" - hashvacia | cinactivo] }
+            { 1 | [ "A" - 3 | nactivo | "C" "B" | "Extremo1" ] } 
+            { 2 | [ "B" - 1 | nactivo | "A" "C" | "Extremo2" ] } 
+            { 3 | [ "C" - 2 | nactivo | "B" "A" | "Extremo3" ] } .
 
 load model-checker
 
 mod PROPS is
  *** Importa los modulos correspondientes
+ pr SATISFACTION .
+ pr COMPORTAMIENTO .
+ pr RED .
+ subsort Sistema < State .
+
+ var ND : Nodo .
+ var CANTIDAD_X : Nat .
+ var ID_NODO ID_NODO_AMIGO MSGREC : String .
+ vars IDLOC IDLOCCENTRO : Nat .
+ var SIS : Sistema .
+ var TH : TablaHash .
+ var ESTCENTRO : EstCentro .
+ var ESTEXTREMO : EstExtremo .
+ var LAMIGOS LAMIGOS' : ListaString .
+ var CONTENIDO : Contenidos .
 
  *** Define las propiedades
+ op existeElNodo : String -> Prop [ctor] .
+ eq SIS { IDLOC | [ID_NODO - IDLOCCENTRO | ESTEXTREMO | LAMIGOS | MSGREC ] CONTENIDO } |= existeElNodo(ID_NODO) = true .
+ eq SIS { IDLOC | [ ID_NODO - TH | ESTCENTRO ] } |= existeElNodo(ID_NODO) = true .
+
+ op EsAmigoDe : String String -> Prop [ctor] .
+ eq SIS { IDLOC | [ ID_NODO - IDLOCCENTRO | ESTEXTREMO | LAMIGOS' ID_NODO_AMIGO LAMIGOS | MSGREC ] CONTENIDO } |= EsAmigoDe( ID_NODO, ID_NODO_AMIGO ) = true .
+
+ op existeMsgTo : String -> Prop [ctor] .
+ eq SIS { IDLOC | ( to ID_NODO : MSGREC ) } |= existeMsgTo( ID_NODO ) = true .
+
+ op cantidadDeNodos : Nat -> Prop [ctor] .
+ eq SIS |= cantidadDeNodos(CANTIDAD_X) = numNodos(SIS) == CANTIDAD_X .
+
+ op cantidadDeExtremos : Nat -> Prop [ctor] .
+ eq SIS |= cantidadDeExtremos(CANTIDAD_X) = sd(numNodos(SIS),1) == CANTIDAD_X .
+
 endm
 
 mod TEST is
  *** Importa los modulos correspondientes
+ pr LTL-SIMPLIFIER .
+ pr PROPS .
+ pr MODEL-CHECKER .
+ pr EJEMPLO .
 endm
 
-eof
+***eof
 
 *** Define y comprueba las propiedades
 
-red modelCheck(init, ...) .
+*** Comprobar la cantidad de nodos
+red modelCheck(init, [] cantidadDeNodos(4)) .
+
+---red modelCheck(init, [] (existeElNodo("A") /\ EsAmigoDe("A", "B") -> <> existeMsgTo("B"))) .
