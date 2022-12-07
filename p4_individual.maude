@@ -14,10 +14,6 @@ fmod TABLAHASH is
     vars S S' : String .
     vars TH TH' : TablaHash .
 
-    ***Funcion insertar en la TablaHash
-    op insertar : String Nat TablaHash -> TablaHash .
-    eq insertar(S, N, hashvacia) = hash< S, N > .
-
     ***Funcion actualizar la TablaHash
     op actualizarTHash : String Nat TablaHash -> TablaHash .
     eq actualizarTHash(S, N, TH) = TH hash< S, N > .
@@ -30,15 +26,11 @@ fmod LISTASTRING is
     sort ListaString .
     subsort String < ListaString .
     
-    op sinAmigos : -> ListaString [ctor] .
-    op __ : ListaString ListaString -> ListaString [ctor assoc id: sinAmigos] .
+    op lAmigosVacia : -> ListaString [ctor] .
+    op __ : ListaString ListaString -> ListaString [ctor assoc id: lAmigosVacia] .
 
     var AMIGO : String .
     var LAMIGOS : ListaString .
-
-    op sacarAmigo : ListaString -> ListaString .
-    eq sacarAmigo(sinAmigos) = sinAmigos .
-    eq sacarAmigo(AMIGO LAMIGOS) = sacarAmigo(LAMIGOS) . 
     
 endfm
 
