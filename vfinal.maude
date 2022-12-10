@@ -180,15 +180,8 @@ mod EJEMPLO is
 
 *** Define un término inicial sobre el que probar las propiedades siguiendo el enunciado .
 
---- eq init = { 0 | [ "IDC1" - hashvacia | cinactivo] }
----             { 1 | [ "A" - 3 | ninactivo | "C" "B" | "" ] } 
----             { 2 | [ "B" - 1 | ninactivo | "A" "C" | "" ] } 
----             { 3 | [ "C" - 2 | ninactivo | "B" "A" | "" ] } .
-
-eq init = { 0 | [ "IDC1" - hashvacia | cinactivo] }
-            { 1 | [ "A" - 0 | ninactivo | "C" "B" | "" ] } 
-            { 2 | [ "B" - 0 | ninactivo | "A" "C" | "" ] } 
-            { 3 | [ "C" - 0 | ninactivo | "B" "A" | "" ] } .
+eq init = { 0 | [ "00" - hashvacia | cinactivo] } { 1 | [ "01" - 0 | ninactivo | "02" "03" | "" ] }
+          { 2 | [ "02" - 0 | ninactivo | "01" "03" | "" ] } { 3 | [ "03" - 0 | ninactivo | "02" "01" | "" ] } .
 
 
 
@@ -197,11 +190,6 @@ frew init .
 
 *** 15 Utiliza el comando search para comprobar que el numero de permanece invariable durante toda la ejecucion .
 search [1] init =>+ SIS:Sistema s.t. numNodos(init) =/= numNodos(SIS:Sistema) .
-
-search init =>+ { 0 | [ "IDC1" - hashvacia | cinactivo] }
-            { 1 | [ "A" - 3 | nactivo | "C" "B" | "Extremo1" ] } 
-            { 2 | [ "B" - 1 | nactivo | "A" "C" | "Extremo2" ] } 
-            { 3 | [ "C" - 2 | nactivo | "B" "A" | "Extremo3" ] } .
 
 load model-checker
 
@@ -232,7 +220,7 @@ mod PROPS is
  eq SIS { IDLOC | [ ID_NODO - IDLOCCENTRO | ESTEXTREMO | LAMIGOS' ID_NODO_AMIGO LAMIGOS | MSGREC ] CONTENIDO } |= EsAmigoDe( ID_NODO, ID_NODO_AMIGO ) = true .
 
  op existeMsgTo : String -> Prop [ctor] .
- eq SIS { IDLOC | ( to ID_NODO : MSGREC ) } |= existeMsgTo( ID_NODO ) = true .
+ eq SIS { IDLOC | ( to ID_NODO : MSGREC ) CONTENIDO } |= existeMsgTo( ID_NODO ) = true .
 
  op cantidadDeNodos : Nat -> Prop [ctor] .
  eq SIS |= cantidadDeNodos(CANTIDAD_X) = numNodos(SIS) == CANTIDAD_X .
@@ -257,4 +245,7 @@ endm
 *** Comprobar la cantidad de nodos
 red modelCheck(init, [] cantidadDeNodos(4)) .
 
----red modelCheck(init, [] (existeElNodo("A") /\ EsAmigoDe("A", "B") -> <> existeMsgTo("B"))) .
+red modelCheck(init, [] (existeElNodo("01") /\ <> EsAmigoDe("02", "01") -> <> existeMsgTo("01"))) .
+
+red modelCheck(init, [] (<> existeMsgTo("03") -> <> ~ existeMsgTo("03"))) .
+
